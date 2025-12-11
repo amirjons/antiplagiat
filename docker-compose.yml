@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  api-gateway:
+    build: ./api_gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - FILE_SERVICE_URL=http://file-storing:8001
+      - ANALYSIS_SERVICE_URL=http://file-analysis:8002
+    volumes:
+      - ./api_gateway/app/templates:/app/app/templates
+      - ./api_gateway/app/static:/app/app/static
+    depends_on:
+      - file-storing
+      - file-analysis
+    networks:
+      - antiplagiat-network
+
+  file-storing:
+    build: ./file_storing_service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./file_storing_service/uploads:/app/uploads
+    networks:
+      - antiplagiat-network
+
+  file-analysis:
+    build: ./file_analysis_service
+    ports:
+      - "8002:8002"
+    environment:
+      - FILE_SERVICE_URL=http://file-storing:8001
+    volumes:
+      - ./file_analysis_service/reports:/app/reports
+    networks:
+      - antiplagiat-network
+
+networks:
+  antiplagiat-network:
+    driver: bridge

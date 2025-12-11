@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+httpx
+python-dotenv
+pydantic
+pydantic_settings
+python-multipart
+pdfplumber
+python-docx
+PyPDF2
+jinja2

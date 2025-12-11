@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AntiPlagiat - Загрузка работ</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📤 AntiPlagiat System</h1>
+        <p class="subtitle">Система проверки студенческих работ на плагиат</p>
+
+        <div class="upload-form">
+            <h2>Загрузить работу</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="student_name">ФИО студента:</label>
+                    <input type="text" id="student_name" name="student_name" required
+                           placeholder="Иванов Иван Иванович">
+                </div>
+
+                <div class="form-group">
+                    <label for="assignment_id">Задание:</label>
+                    <input type="text" id="assignment_id" name="assignment_id" required
+                           placeholder="homework_1, lab_2, exam_2024">
+                </div>
+
+                <div class="form-group">
+                    <label for="file">Файл работы:</label>
+                    <input type="file" id="file" name="file" accept=".txt,.pdf,.docx" required>
+                    <small>Поддерживаемые форматы: .txt, .pdf, .docx</small>
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">
+                    <span id="btnText">📤 Отправить на проверку</span>
+                    <div id="spinner" class="spinner" style="display: none;"></div>
+                </button>
+            </form>
+
+            <div id="message"></div>
+        </div>
+
+        <div class="instructions">
+            <h3>Как работает система:</h3>
+            <ol>
+                <li>Загрузите файл с работой студента</li>
+                <li>Система автоматически проверит его на плагиат</li>
+                <li>Вы получите детальный отчет с облаком слов</li>
+                <li>Плагиат обнаруживается по полному совпадению файлов</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const messageDiv = document.getElementById('message');
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const spinner = document.getElementById('spinner');
+
+            // Показываем спиннер
+            btnText.textContent = 'Обработка...';
+            spinner.style.display = 'inline-block';
+            submitBtn.disabled = true;
+
+            messageDiv.innerHTML = '<div class="loading">⏳ Отправка файла на сервер...</div>';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    messageDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Файл успешно загружен!
+                            <p>ID работы: <strong>${result.work_id}</strong></p>
+                            <p>Статус: <strong>${result.status}</strong></p>
+                            <p>
+                                <a href="/works/${result.work_id}/view" class="btn" target="_blank">
+                                    📊 Посмотреть отчет
+                                </a>
+                            </p>
+                        </div>
+                    `;
+
+                    // Очищаем форму
+                    document.getElementById('uploadForm').reset();
+
+                    // Автоматически открываем отчет через 2 секунды
+                    setTimeout(() => {
+                        window.open(`/works/${result.work_id}/view`, '_blank');
+                    }, 2000);
+
+                } else {
+                    const error = await response.json();
+                    messageDiv.innerHTML = `<div class="error">❌ Ошибка: ${error.detail || 'Неизвестная ошибка'}</div>`;
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="error">❌ Ошибка сети: ${error.message}</div>`;
+            } finally {
+                // Восстанавливаем кнопку
+                btnText.textContent = '📤 Отправить на проверку';
+                spinner.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

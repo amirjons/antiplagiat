@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отчет #{{ work_id }} - AntiPlagiat</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .progress-container {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 25px;
+            background: #e9ecef;
+            border-radius: 12px;
+            margin: 10px 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.5s ease;
+            position: relative;
+        }
+
+        .progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            line-height: 25px;
+            color: #333;
+            font-weight: bold;
+            text-shadow: 0 0 2px white;
+        }
+
+        .similarity-level {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .level {
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .low { background: #d4edda; color: #155724; }
+        .medium { background: #fff3cd; color: #856404; }
+        .high { background: #f8d7da; color: #721c24; }
+
+        .result-description {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Отчет по проверке работы</h1>
+            <a href="/" class="btn-back">⬅️ Назад к загрузке</a>
+        </header>
+
+        <div id="report-content">
+            <div class="loading">⏳ Загрузка отчета...</div>
+        </div>
+
+        <div class="actions">
+            <button onclick="refreshReport()" class="btn">🔄 Обновить</button>
+            <button onclick="window.print()" class="btn">🖨️ Печать</button>
+            <button onclick="closeReport()" class="btn">❌ Закрыть</button>
+        </div>
+    </div>
+
+    <script>
+        const workId = {{ work_id }};
+        const PLAGIARISM_THRESHOLD = 70; // Порог плагиата в процентах
+
+        function getSimilarityLevel(similarity) {
+            if (similarity < 30) return { class: 'low', text: 'Низкая' };
+            if (similarity < 70) return { class: 'medium', text: 'Средняя' };
+            return { class: 'high', text: 'Высокая' };
+        }
+
+        function getColorBySimilarity(similarity) {
+            if (similarity < 30) return '#28a745'; // Зеленый
+            if (similarity < 50) return '#ffc107'; // Желтый
+            if (similarity < 70) return '#fd7e14'; // Оранжевый
+            return '#dc3545'; // Красный
+        }
+
+        function getDescriptionBySimilarity(similarity) {
+            if (similarity < 10) return 'Работы практически не имеют общих элементов.';
+            if (similarity < 30) return 'Незначительные совпадения, вероятно случайные.';
+            if (similarity < 50) return 'Умеренные совпадения, возможно общие источники.';
+            if (similarity < 70) return 'Значительные совпадения, требуется проверка преподавателя.';
+            if (similarity < 90) return 'Высокая степень совпадения, вероятен плагиат.';
+            return 'Очень высокая степень совпадения, явный плагиат.';
+        }
+
+        async function loadReport() {
+            try {
+                const response = await fetch(`/works/${workId}/report`);
+                const report = await response.json();
+
+                const contentDiv = document.getElementById('report-content');
+
+                // Проверяем, если отчет еще формируется
+                if (report.status === 'processing') {
+                    contentDiv.innerHTML = `
+                        <div class="processing">
+                            <h2>⏳ Отчет формируется</h2>
+                            <p>Работа #${workId} все еще проверяется...</p>
+                            <p>Пожалуйста, обновите страницу через несколько секунд</p>
+                            <div class="spinner"></div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Вычисляем процент совпадения
+                const similarity = report.similarity_percentage || (report.plagiarism_score * 100).toFixed(2);
+                const similarityNum = parseFloat(similarity);
+                const level = getSimilarityLevel(similarityNum);
+                const color = getColorBySimilarity(similarityNum);
+                const description = getDescriptionBySimilarity(similarityNum);
+                const isPlagiarism = report.is_plagiarism || similarityNum >= PLAGIARISM_THRESHOLD;
+
+                let plagiarismStatus = '';
+                if (isPlagiarism) {
+                    plagiarismStatus = `
+                        <div class="plagiarism-detected">
+                            <div class="warning-icon">⚠️</div>
+                            <h3>ВЫСОКАЯ СХОЖЕСТЬ ОБНАРУЖЕНА!</h3>
+                            <div class="progress-container">
+                                <p><strong>Процент совпадения:</strong></p>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${similarityNum}%; background: ${color};">
+                                        <div class="progress-text">${similarityNum.toFixed(2)}%</div>
+                                    </div>
+                                </div>
+                                <div class="similarity-level">
+                                    <span class="level low">Низкая (<30%)</span>
+                                    <span class="level medium">Средняя (30-69%)</span>
+                                    <span class="level high">Высокая (≥70%)</span>
+                                </div>
+                                <div class="result-description" style="background: ${color}20;">
+                                    ${description}
+                                </div>
+                            </div>
+                            <div class="plagiarism-details">
+                                <p><strong>Оригинальный автор:</strong> ${report.original_author || 'Неизвестно'}</p>
+                                <p><strong>ID оригинальной работы:</strong> ${report.matched_work_id || 'Неизвестно'}</p>
+                                <p><strong>Файл оригинала:</strong> ${report.matched_file_name || report.original_file || 'Неизвестно'}</p>
+                                <p class="small">Порог плагиата: ${PLAGIARISM_THRESHOLD}%</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    plagiarismStatus = `
+                        <div class="plagiarism-clean">
+                            <div class="success-icon">✅</div>
+                            <h3>ПЛАГИАТ НЕ ОБНАРУЖЕН</h3>
+                            <div class="progress-container">
+                                <p><strong>Схожесть с другими работами:</strong></p>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${Math.min(similarityNum, 100)}%; background: ${color};">
+                                        <div class="progress-text">${similarityNum.toFixed(2)}%</div>
+                                    </div>
+                                </div>
+                                <div class="similarity-level">
+                                    <span class="level low">Низкая (<30%)</span>
+                                    <span class="level medium">Средняя (30-69%)</span>
+                                    <span class="level high">Высокая (≥70%)</span>
+                                </div>
+                                <div class="result-description" style="background: ${color}20;">
+                                    ${description}
+                                </div>
+                            </div>
+                            <p class="small">Порог плагиата: ${PLAGIARISM_THRESHOLD}%</p>
+                        </div>
+                    `;
+                }
+
+                let wordCloudSection = '';
+                if (report.word_cloud_url && report.word_cloud_url.startsWith('http')) {
+                    wordCloudSection = `
+                        <div class="word-cloud-section">
+                            <h3>☁️ Облако слов</h3>
+                            <div class="word-cloud-container">
+                                <img src="${report.word_cloud_url}" alt="Облако слов"
+                                     onerror="this.style.display='none'">
+                                <p class="small">Частота слов в тексте работы</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let hashAnalysis = '';
+                if (report.file_hash) {
+                    hashAnalysis = `
+                        <div class="detail">
+                            <strong>🔐 Хеш файла (SHA-256):</strong>
+                            <div class="hash-container">
+                                <code class="hash">${report.file_hash}</code>
+                                <p class="small">Хеш используется для точного сравнения файлов</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                contentDiv.innerHTML = `
+                    <div class="report-card">
+                        <div class="report-header">
+                            <h2>Работа #${report.work_id}</h2>
+                            <span class="report-date">${new Date(report.created_at).toLocaleString('ru-RU')}</span>
+                        </div>
+
+                        <div class="report-details">
+                            <div class="detail-row">
+                                <div class="detail">
+                                    <strong>👤 Студент:</strong>
+                                    <span>${report.student_name}</span>
+                                </div>
+                                <div class="detail">
+                                    <strong>📚 Задание:</strong>
+                                    <span>${report.assignment_id}</span>
+                                </div>
+                            </div>
+
+                            <div class="detail-row">
+                                <div class="detail">
+                                    <strong>📄 Файл:</strong>
+                                    <span>${report.file_name}</span>
+                                </div>
+                                <div class="detail">
+                                    <strong>📅 Дата проверки:</strong>
+                                    <span>${new Date(report.created_at).toLocaleDateString('ru-RU')}</span>
+                                </div>
+                            </div>
+
+                            ${hashAnalysis}
+                        </div>
+
+                        <div class="plagiarism-section">
+                            <h3>🔍 Результат проверки на плагиат</h3>
+                            ${plagiarismStatus}
+                        </div>
+
+                        ${wordCloudSection}
+
+                        <div class="analysis-info">
+                            <h3>📋 Информация об анализе</h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <strong>Метод сравнения:</strong>
+                                    <span>Текстовый анализ (SequenceMatcher)</span>
+                                </div>
+                                <div class="info-item">
+                                    <strong>Проверено работ:</strong>
+                                    <span>${report.total_compared || 'Все в системе'}</span>
+                                </div>
+                                <div class="info-item">
+                                    <strong>Вердикт:</strong>
+                                    <span>${isPlagiarism ? 'ПЛАГИАТ' : 'УНИКАЛЬНА'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                document.getElementById('report-content').innerHTML = `
+                    <div class="error">
+                        ❌ Ошибка загрузки отчета: ${error.message}
+                        <p>Попробуйте обновить страницу или проверьте ID работы</p>
+                    </div>
+                `;
+            }
+        }
+
+        function refreshReport() {
+            document.getElementById('report-content').innerHTML = '<div class="loading">⏳ Обновление отчета...</div>';
+            loadReport();
+        }
+
+        function closeReport() {
+            window.close();
+        }
+
+        // Загружаем отчет при открытии страницы
+        loadReport();
+        // Обновляем каждые 5 секунд, если статус processing
+        setInterval(loadReport, 5000);
+    </script>
+</body>
+</html>
