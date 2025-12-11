@@ -40,7 +40,6 @@ async def upload_file(
             try:
                 if file.filename.endswith('.txt'):
                     extracted_text = file_content.decode('utf-8', errors='ignore')
-                # Можно добавить извлечение текста и для других форматов
             except:
                 pass
 

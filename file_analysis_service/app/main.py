@@ -55,7 +55,7 @@ def calculate_text_similarity_advanced(text1: str, text2: str) -> float:
     seq_similarity = difflib.SequenceMatcher(None, text1, text2).ratio()
     similarities.append(seq_similarity)
 
-    # Метод 2: Сравнение по токенам (словам)
+    # Метод 2: Сравнение по токенам
     words1 = set(re.findall(r'\b\w+\b', text1))
     words2 = set(re.findall(r'\b\w+\b', text2))
 
@@ -65,7 +65,7 @@ def calculate_text_similarity_advanced(text1: str, text2: str) -> float:
         token_similarity = len(common_words) / len(all_words) if all_words else 0
         similarities.append(token_similarity)
 
-    # Метод 3: Сравнение по шинглам (n-граммам)
+    # Метод 3: Сравнение по шинглам
     def get_shingles(text, n=3):
         words = text.split()
         shingles = set()
@@ -181,7 +181,6 @@ async def analyze_file(request: AnalysisRequest):
             # Берем первые 1000 символов для облака слов
             text_for_cloud = request.file_content[:1000] if len(request.file_content) > 1000 else request.file_content
 
-            # Удаляем спецсимволы, оставляем только слова
             words = re.findall(r'\b\w+\b', text_for_cloud.lower())
 
             if words:
@@ -191,7 +190,7 @@ async def analyze_file(request: AnalysisRequest):
 
                 # Кодируем для URL
                 encoded_text = urllib.parse.quote(cloud_text)
-                word_cloud_url = f"https://quickchart.io/wordcloud?text={encoded_text}&width=800&height=400&format=png"
+                word_cloud_url = f"https://quickchart.io/wordcloud?text={encoded_text}&width=1000&height=800&format=png"
 
         # Создаем отчет
         report = {
@@ -205,7 +204,7 @@ async def analyze_file(request: AnalysisRequest):
             "original_author": original_author,
             "matched_work_id": matched_work_id,
             "matched_file_name": matched_file_name,
-            "similarity_percentage": round(plagiarism_score * 100, 2),  # Процент для удобства
+            "similarity_percentage": round(plagiarism_score * 100, 2),
             "word_cloud_url": word_cloud_url,
             "file_hash": request.file_hash,
             "created_at": datetime.now().isoformat()

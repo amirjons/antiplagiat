@@ -22,7 +22,6 @@ async def web_interface(request: Request):
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# Добавьте более надежную функцию извлечения текста
 def extract_text_from_file(file_bytes, filename):
     """Извлекает текст из разных форматов файлов"""
     if not file_bytes:
